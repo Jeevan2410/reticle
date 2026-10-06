@@ -46,11 +46,14 @@ function describePresentTestidsCut(shown: number, total: number | undefined): st
  * kept mounted still fails it, correctly. But "found 1" beside `visible: false` evidence reads as a
  * stuck UI, so when every match is hidden the reason says so and names `state: "hidden"`, the
  * predicate for "no longer shown" (#1360). Only when every match was described: with a truncated
- * list a visible one may be among the rest, and the hint would then be wrong.
+ * list a visible one may be among the rest, and the hint would then be wrong. And only when the
+ * check names no state: with `state: "hidden"` the advice would repeat the check itself, and with any
+ * other state it would ask the caller to drop the condition they actually wrote.
  */
-function describeAbsentMiss(match: MatchResult): string {
+function describeAbsentMiss(match: MatchResult, state: ElementState | undefined): string {
   const found = `expected element to be absent but found ${String(match.count)}`;
   const allDescribedHidden =
+    undefined === state &&
     match.elements.length > 0 &&
     match.elements.length === match.count &&
     match.elements.every((element) => !element.visible);
@@ -219,7 +222,7 @@ export async function evalElement(
     return match.matched
       ? {
           pass: false,
-          failureReason: describeAbsentMiss(match),
+          failureReason: describeAbsentMiss(match, state),
           observed: `${String(match.count)} element(s) matching ${subject}`,
           expected: `no element matching ${subject}`,
           assertion: 'element.absent',

@@ -117,7 +117,7 @@ it('points an absent check on a hidden-only match at state: "hidden", and still 
   expect(two.failureReason).toContain('found 2, but every one is hidden');
 });
 
-it('keeps the plain absent reason when a match is visible, or not every match was described', async () => {
+it('keeps the plain absent reason when a match is visible, a state is named, or not every match was described', async () => {
   const plain = 'expected element to be absent but found 2';
   const mixed = await evalElement(
     matching([{ visible: false }, { visible: true }]),
@@ -127,6 +127,19 @@ it('keeps the plain absent reason when a match is visible, or not every match wa
     true,
   );
   expect(mixed.failureReason).toBe(plain);
+
+  // The check already names a state: `hidden` would make the advice repeat the check, and any other
+  // state would make it ask the caller to drop the condition they wrote.
+  for (const state of [ElementState.HIDDEN, ElementState.CHECKED]) {
+    const stated = await evalElement(
+      matching([{ visible: false }, { visible: false }]),
+      { testid: 'x' },
+      state,
+      true,
+      true,
+    );
+    expect(stated.failureReason).toBe(plain);
+  }
 
   // Two matches, one described: the undescribed one may be visible, so no hidden hint.
   const truncated = await evalElement(
