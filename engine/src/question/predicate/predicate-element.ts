@@ -11,7 +11,7 @@ import {
   ReticleCommand,
   type ElementDescriptor,
   type ElementQuery,
-  type ElementState,
+  ElementState,
   type MatchResult,
 } from '@reticlehq/core';
 import {
@@ -39,6 +39,27 @@ import { satisfiesProperty, type Baseline, type PropertyAssertion } from './prop
 function describePresentTestidsCut(shown: number, total: number | undefined): string {
   if (total === undefined || total <= shown) return '';
   return ` (the present-testid list shows the first ${String(shown)} of ${String(total)} in document order — absence from it proves nothing)`;
+}
+
+/**
+ * Why an `absent` check failed. `absent` means removed from the DOM, so an element the app hid but
+ * kept mounted still fails it, correctly. But "found 1" beside `visible: false` evidence reads as a
+ * stuck UI, so when every match is hidden the reason says so and names `state: "hidden"`, the
+ * predicate for "no longer shown" (#1360). Only when every match was described: with a truncated
+ * list a visible one may be among the rest, and the hint would then be wrong.
+ */
+function describeAbsentMiss(match: MatchResult): string {
+  const found = `expected element to be absent but found ${String(match.count)}`;
+  const allDescribedHidden =
+    match.elements.length > 0 &&
+    match.elements.length === match.count &&
+    match.elements.every((element) => !element.visible);
+  if (!allDescribedHidden) return found;
+  const which = 1 === match.count ? 'it is' : 'every one is';
+  return (
+    `${found}, but ${which} hidden — \`absent\` means removed from the DOM; ` +
+    `to assert it isn't shown, use \`state: "${ElementState.HIDDEN}"\``
+  );
 }
 
 async function matchOnce(
@@ -198,7 +219,7 @@ export async function evalElement(
     return match.matched
       ? {
           pass: false,
-          failureReason: `expected element to be absent but found ${String(match.count)}`,
+          failureReason: describeAbsentMiss(match),
           observed: `${String(match.count)} element(s) matching ${subject}`,
           expected: `no element matching ${subject}`,
           assertion: 'element.absent',
