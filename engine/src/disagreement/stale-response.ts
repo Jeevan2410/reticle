@@ -52,21 +52,33 @@ function queryOf(url: string): string {
  *
  * A filter race differs in a SELECTING parameter (`status`, `q`, a date range): the second request
  * makes the first obsolete, both answer into the same view, and the slower one wins.
+ *
+ * Held as normalised names (see `normalisedParam`), because one parameter has many spellings. The
+ * set once held `pageSize` and `per_page` verbatim, so `page_size` was a selecting parameter, and a
+ * page query (`page_size=25`) racing its own count query (`page_size=1`) was reported as stale (#1677).
+ * `last` stays out on purpose: `last=7d` is a window, and a window selects.
  */
 const ENUMERATING_PARAMS = new Set([
   'page',
+  'pagenumber',
   'offset',
+  'skip',
   'cursor',
   'limit',
   'size',
-  'per_page',
-  'perPage',
-  'pageSize',
+  'take',
+  'top',
+  'first',
+  'perpage',
+  'pagesize',
   'after',
   'before',
   'start',
   'end',
 ]);
+
+/** `page_size`, `page-size`, `PageSize`, `page[size]` and `$skip` as `pagesize` … `skip`. */
+const normalisedParam = (key: string): string => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** Whether the two queries differ ONLY in how much of the same collection they ask for. */
 function differsOnlyByEnumeration(first: string, second: string): boolean {
@@ -76,7 +88,7 @@ function differsOnlyByEnumeration(first: string, second: string): boolean {
   let differed = false;
   for (const key of keys) {
     if (a.get(key) === b.get(key)) continue;
-    if (!ENUMERATING_PARAMS.has(key)) return false;
+    if (!ENUMERATING_PARAMS.has(normalisedParam(key))) return false;
     differed = true;
   }
   return differed;
